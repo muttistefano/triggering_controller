@@ -39,7 +39,7 @@ class State;
 
 namespace triggering_controller
 {
-const auto kUninitializedValue = std::numeric_limits<double>::quiet_NaN();
+
 using hardware_interface::HW_IF_EFFORT;
 using hardware_interface::HW_IF_POSITION;
 using hardware_interface::HW_IF_VELOCITY;
@@ -98,10 +98,28 @@ controller_interface::CallbackReturn TriggeringController::on_configure(
   }
   params_ = param_listener_->get_params();
 
+  std::string _robot_description_msg = "";
+  #ifdef TEST_GAZEBO
+    RCLCPP_ERROR_STREAM(get_node()->get_logger(), "TESTING WITH GAZEBO BUILD " );
+    #pragma message("TESTING WITH GAZEBO BUILD ")
+    #include<triggering_controller/test/ur_urdf.hpp>
+    _robot_description_msg = robot_urdf;
+  #else
+    auto robot_sub = get_node()->create_subscription<std_msgs::msg::String>(
+      params_.robot_description_topic, rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable(),
+      [&_robot_description_msg,this](std_msgs::msg::String::SharedPtr msg) { _robot_description_msg = msg->data; });
 
-  RCLCPP_INFO(
-    get_node()->get_logger(),
-    "Publishing state interfaces defined in 'joints' and 'interfaces' parameters.");
+    while(_robot_description_msg == "")
+    {
+      RCLCPP_ERROR_STREAM(get_node()->get_logger(), "_robot_description_msg " << _robot_description_msg);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));  
+    }
+  #endif
+
+  kdl_parser::treeFromString(_robot_description_msg,_kdl_tree);
+  _kdl_tree.getChain(params_.robot_chain_root,params_.robot_chain_tip,_kdl_chain_robot);
+  _jnt_to_pose_solver_robot.reset(new KDL::ChainFkSolverPos_recursive(_kdl_chain_robot));
+  _q_robot.resize(_kdl_chain_robot.getNrOfJoints());
 
 
   return CallbackReturn::SUCCESS;
@@ -116,6 +134,25 @@ controller_interface::CallbackReturn TriggeringController::on_activate(
       get_node()->get_logger(), "None of requested interfaces exist. Controller will not run.");
     return CallbackReturn::ERROR;
   }
+
+  for (const auto & state_interface : state_interfaces_)
+  {
+    std::string interface_name = state_interface.get_interface_name();
+    name_if_value_mapping_[state_interface.get_prefix_name()][interface_name] =
+      state_interface.get_value();
+    RCLCPP_DEBUG(
+      get_node()->get_logger(), "%s: %f\n", state_interface.get_name().c_str(),
+      state_interface.get_value());
+  }
+
+  for (size_t i = 0; i < joint_names_.size(); ++i)
+  {
+    _q_robot.data(i) = get_value(name_if_value_mapping_, joint_names_[i], HW_IF_POSITION);
+
+  }
+
+  _jnt_to_pose_solver_robot->JntToCart(_q_robot,_fk_robot_stored);
+  RCLCPP_INFO_STREAM(get_node()->get_logger(), "initial pose :  " << _fk_robot_stored.p(0) << " " <<  _fk_robot_stored.p(1) << " " << _fk_robot_stored.p(2) );
 
   return CallbackReturn::SUCCESS;
 }
@@ -183,21 +220,7 @@ bool TriggeringController::init_joint_data()
 }
 
 
-double get_value(
-  const std::unordered_map<std::string, std::unordered_map<std::string, double>> & map,
-  const std::string & name, const std::string & interface_name)
-{
-  const auto & interfaces_and_values = map.at(name);
-  const auto interface_and_value = interfaces_and_values.find(interface_name);
-  if (interface_and_value != interfaces_and_values.cend())
-  {
-    return interface_and_value->second;
-  }
-  else
-  {
-    return kUninitializedValue;
-  }
-}
+
 
 controller_interface::return_type TriggeringController::update(
   const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
@@ -205,10 +228,6 @@ controller_interface::return_type TriggeringController::update(
   for (const auto & state_interface : state_interfaces_)
   {
     std::string interface_name = state_interface.get_interface_name();
-    if (map_interface_to_joint_state_.count(interface_name) > 0)
-    {
-      interface_name = map_interface_to_joint_state_[interface_name];
-    }
     name_if_value_mapping_[state_interface.get_prefix_name()][interface_name] =
       state_interface.get_value();
     RCLCPP_DEBUG(
@@ -216,11 +235,15 @@ controller_interface::return_type TriggeringController::update(
       state_interface.get_value());
   }
 
-    for (size_t i = 0; i < joint_names_.size(); ++i)
-    {
-      std::cout << "PD " << get_value(name_if_value_mapping_, joint_names_[i], HW_IF_POSITION) << "\n" ;
+  for (size_t i = 0; i < joint_names_.size(); ++i)
+  {
+    _q_robot.data(i) = get_value(name_if_value_mapping_, joint_names_[i], HW_IF_POSITION);
 
-    }
+  }
+
+  _jnt_to_pose_solver_robot->JntToCart(_q_robot,_fk_robot_actual);
+
+  RCLCPP_INFO_STREAM(get_node()->get_logger(),fk_dist(_fk_robot_stored,_fk_robot_actual));
 
   return controller_interface::return_type::OK;
 }

@@ -5,6 +5,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
   add_compile_options(-Wall -Wextra)
 endif()
 
+add_compile_definitions(TEST_GAZEBO)
+
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   builtin_interfaces
   control_msgs
@@ -15,10 +17,13 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rcutils
   realtime_tools
   sensor_msgs
+  kdl_parser
 )
 
 find_package(ament_cmake REQUIRED)
 find_package(backward_ros REQUIRED)
+find_package(Boost REQUIRED)
+
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()

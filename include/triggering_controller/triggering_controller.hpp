@@ -30,6 +30,18 @@
 #include "realtime_tools/realtime_publisher.h"
 #include "sensor_msgs/msg/joint_state.hpp"
 
+#include "kdl_parser/kdl_parser.hpp"
+#include <kdl/chain.hpp>
+#include <kdl/chainjnttojacsolver.hpp>
+#include <kdl/chainfksolverpos_recursive.hpp>
+#include <kdl/frames.hpp>
+#include <kdl/jacobian.hpp>
+#include <kdl/jntarray.hpp>
+#include <boost/scoped_ptr.hpp>
+
+
+const auto kUninitializedValue = std::numeric_limits<double>::quiet_NaN();
+
 namespace triggering_controller
 {
 class TriggeringController : public controller_interface::ControllerInterface
@@ -67,6 +79,17 @@ protected:
   bool init_joint_data();
   bool use_all_available_interfaces() const;
 
+  std::string _chain_root;
+  std::string _chain_tip;
+  KDL::Tree   _kdl_tree;
+  KDL::Chain  _kdl_chain_robot;
+  KDL::JntArray  _q_robot;
+  KDL::Frame     _fk_robot_actual;
+  KDL::Frame     _fk_robot_stored;
+
+  boost::scoped_ptr<KDL::ChainFkSolverPos>    _jnt_to_pose_solver_robot;
+
+
 protected:
 
   std::shared_ptr<ParamListener> param_listener_;
@@ -78,6 +101,30 @@ protected:
   std::unordered_map<std::string, std::unordered_map<std::string, double>> name_if_value_mapping_;
 
 };
+
+double get_value(
+  const std::unordered_map<std::string, std::unordered_map<std::string, double>> & map,
+  const std::string & name, const std::string & interface_name)
+{
+  const auto & interfaces_and_values = map.at(name);
+  const auto interface_and_value = interfaces_and_values.find(interface_name);
+  if (interface_and_value != interfaces_and_values.cend())
+  {
+    return interface_and_value->second;
+  }
+  else
+  {
+    return kUninitializedValue;
+  }
+}
+
+double fk_dist(KDL::Frame old_fk,KDL::Frame new_fk)
+{
+  double a = new_fk.p(0) - old_fk.p(0); 
+  double b = new_fk.p(1) - old_fk.p(1);
+  double c = new_fk.p(2) - old_fk.p(2);
+  return sqrt(a*a + b*b + c*c);
+}
 
 }  // namespace triggering_controller
 

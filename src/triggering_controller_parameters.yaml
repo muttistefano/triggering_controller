@@ -7,4 +7,12 @@ triggering_controller:
     type: string_array,
     default_value: [],
   }
+  robot_chain_root: {
+    type: string,
+    default_value: "",
+  }
+  robot_chain_tip: {
+    type: string,
+    default_value: "",
+  }
 
