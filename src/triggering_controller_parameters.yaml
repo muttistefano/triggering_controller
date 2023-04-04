@@ -1,0 +1,10 @@
+triggering_controller:
+  joints: {
+    type: string_array,
+    default_value: [],
+  }
+  interfaces: {
+    type: string_array,
+    default_value: [],
+  }
+

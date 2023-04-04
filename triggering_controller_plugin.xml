@@ -1,0 +1,7 @@
+<library path="triggering_controller">
+  <class name="triggering_controller/TriggeringController" type="triggering_controller::TriggeringController" base_class_type="controller_interface::ControllerInterface">
+  <description>
+    The triggering controller triggers an event at given link distances
+  </description>
+  </class>
+</library>
