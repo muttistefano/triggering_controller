@@ -15,4 +15,8 @@ triggering_controller:
     type: string,
     default_value: "",
   }
+  robot_description_topic: {
+        type: string,
+    default_value: "robot_description",
+  }
 

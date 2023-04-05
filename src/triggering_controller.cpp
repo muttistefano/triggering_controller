@@ -31,6 +31,7 @@
 #include "rcpputils/split.hpp"
 #include "rcutils/logging_macros.h"
 #include "std_msgs/msg/header.hpp"
+#include "std_msgs/msg/string.hpp"
 
 namespace rclcpp_lifecycle
 {

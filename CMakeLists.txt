@@ -5,7 +5,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
   add_compile_options(-Wall -Wextra)
 endif()
 
-add_compile_definitions(TEST_GAZEBO)
+#add_compile_definitions(TEST_GAZEBO)
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   builtin_interfaces
@@ -17,6 +17,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rcutils
   realtime_tools
   sensor_msgs
+  std_msgs
   kdl_parser
 )
 
