@@ -19,4 +19,8 @@ triggering_controller:
         type: string,
     default_value: "robot_description",
   }
+  trigger_distance: {
+        type: double,
+    default_value: 0.001,
+  }
 

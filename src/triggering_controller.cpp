@@ -244,7 +244,14 @@ controller_interface::return_type TriggeringController::update(
 
   _jnt_to_pose_solver_robot->JntToCart(_q_robot,_fk_robot_actual);
 
-  RCLCPP_INFO_STREAM(get_node()->get_logger(),fk_dist(_fk_robot_stored,_fk_robot_actual));
+  // RCLCPP_INFO_STREAM(get_node()->get_logger(),fk_dist(_fk_robot_stored,_fk_robot_actual));
+  if (fk_dist(_fk_robot_stored,_fk_robot_actual) > params_.trigger_distance)
+  {
+    RCLCPP_INFO_STREAM(get_node()->get_logger(),fk_dist(_fk_robot_stored,_fk_robot_actual));
+    _fk_robot_stored = _fk_robot_actual;
+    
+  }
+
 
   return controller_interface::return_type::OK;
 }
