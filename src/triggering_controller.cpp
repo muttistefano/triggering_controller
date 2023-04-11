@@ -126,6 +126,16 @@ controller_interface::CallbackReturn TriggeringController::on_configure(
   return CallbackReturn::SUCCESS;
 }
 
+uint32_t GetTickCount(void)
+{
+    struct timespec ts;
+    unsigned theTick = 0U;
+    clock_gettime( CLOCK_MONOTONIC, &ts );
+    theTick  = ts.tv_nsec/ 1000000;
+    theTick += ts.tv_sec * 1000;
+    return theTick;
+}
+
 controller_interface::CallbackReturn TriggeringController::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
@@ -155,6 +165,34 @@ controller_interface::CallbackReturn TriggeringController::on_activate(
   _jnt_to_pose_solver_robot->JntToCart(_q_robot,_fk_robot_stored);
   RCLCPP_INFO_STREAM(get_node()->get_logger(), "initial pose :  " << _fk_robot_stored.p(0) << " " <<  _fk_robot_stored.p(1) << " " << _fk_robot_stored.p(2) );
 
+  // m_hScanner = EthernetScanner_Connect((char*)params_.wenglor_ip.c_str(), (char*) "32001", params_.scanner_timeout);
+  m_hScanner = EthernetScanner_Connect((char*)params_.wenglor_ip.c_str(), (char*) "32001", 0);
+
+  //if no valid value: ERROR
+  if (m_hScanner == nullptr)
+  {
+      RCLCPP_INFO_STREAM(get_node()->get_logger(), "Error, Error: EthernetScanner_Connect: nullptr-Pointer" );
+      m_hScanner = nullptr;
+      return CallbackReturn::ERROR;
+  }
+
+  uint32_t time = GetTickCount();
+  int ConnectionStatus = 0;
+  m_iPicCntErr = 0;
+  while(ConnectionStatus != ETHERNETSCANNER_TCPSCANNERCONNECTED)
+  {
+      //current state of the connection
+      EthernetScanner_GetConnectStatus(m_hScanner, &ConnectionStatus);
+      //Detect the timeout
+      if( (GetTickCount()-time) > 1000 )
+      {
+          m_hScanner = EthernetScanner_Disconnect(m_hScanner);
+          RCLCPP_INFO_STREAM(get_node()->get_logger(), "Error, Error: EthernetScanner_Connect:Error in connection" );
+          m_hScanner = nullptr;
+          return CallbackReturn::ERROR;
+      }
+  }
+
   return CallbackReturn::SUCCESS;
 }
 
@@ -162,6 +200,12 @@ controller_interface::CallbackReturn TriggeringController::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   joint_names_.clear();
+
+  if (m_hScanner)
+  {
+      EthernetScanner_Disconnect(m_hScanner);
+      m_hScanner = nullptr;
+  }
 
   return CallbackReturn::SUCCESS;
 }
@@ -221,8 +265,6 @@ bool TriggeringController::init_joint_data()
 }
 
 
-
-
 controller_interface::return_type TriggeringController::update(
   const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
 {
@@ -252,6 +294,20 @@ controller_interface::return_type TriggeringController::update(
     
   }
 
+  EthernetScanner_ResetDllFiFo(m_hScanner);
+  int iPicCnt = 0;
+  int dataLength = EthernetScanner_GetXZIExtended(m_hScanner,
+                                                  m_dScannerBufferX,
+                                                  m_dScannerBufferZ,
+                                                  nullptr,
+                                                  nullptr,
+                                                  ETHERNETSCANNER_SCANXMAX * ETHERNETSCANNER_PEAKSPERCMOSSCANLINEMAX,
+                                                  &m_uScannerEncoder,
+                                                  &m_ucScannerDigitalInputs,
+                                                  8,
+                                                  nullptr,
+                                                  0,
+                                                  &iPicCnt);
 
   return controller_interface::return_type::OK;
 }

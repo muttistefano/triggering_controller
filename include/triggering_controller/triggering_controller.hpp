@@ -39,6 +39,8 @@
 #include <kdl/jntarray.hpp>
 #include <boost/scoped_ptr.hpp>
 
+#include "EthernetScannerSDK.h"
+#include "EthernetScannerSDKDefine.h"
 
 const auto kUninitializedValue = std::numeric_limits<double>::quiet_NaN();
 
@@ -89,6 +91,12 @@ protected:
 
   boost::scoped_ptr<KDL::ChainFkSolverPos>    _jnt_to_pose_solver_robot;
 
+  void            *m_hScanner;
+  int             m_iPicCntErr = 0;
+  double          m_dScannerBufferX[ETHERNETSCANNER_SCANXMAX * ETHERNETSCANNER_PEAKSPERCMOSSCANLINEMAX];
+  double          m_dScannerBufferZ[ETHERNETSCANNER_SCANXMAX * ETHERNETSCANNER_PEAKSPERCMOSSCANLINEMAX];
+  unsigned int    m_uScannerEncoder;
+  unsigned char   m_ucScannerDigitalInputs;
 
 protected:
 

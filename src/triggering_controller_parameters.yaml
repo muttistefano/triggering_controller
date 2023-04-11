@@ -23,4 +23,13 @@ triggering_controller:
         type: double,
     default_value: 0.001,
   }
+  wenglor_ip: {
+        type: string,
+    default_value: "",
+  }
+  scanner_timeout: {
+        type: int,
+    default_value: 0,
+  }
+
 
